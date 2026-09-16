@@ -1,0 +1,15 @@
+title: "Right Tech, Right Reason"
+description: "Integration Platform Framework — SAP CI vs MuleSoft"
+theme: jekyll-theme-cayman
+
+# Files/folders Jekyll should leave alone (served as-is, not processed)
+include:
+  - decision-tool.html
+
+# kramdown (GitHub Pages' default markdown processor) passes raw HTML blocks
+# straight through, which is what lets the mermaid <pre class="mermaid"> and
+# <script> tags in reference.md render correctly without a plugin.
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false

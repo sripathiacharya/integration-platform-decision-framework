@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Tool — Integration Platform Framework</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #5b6470;
+    --card-bg: #f7f8fa; --card-bg-2: #eef1f5; --border: #dfe3e8;
+    --accent-sap: #0a6ed1; --accent-mule: #00a3e0; --accent-both: #6b46c1;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14161a; --fg: #e8eaed; --muted: #9aa4b2;
+      --card-bg: #1d2025; --card-bg-2: #22262c; --border: #2c3038;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14161a; --fg: #e8eaed; --muted: #9aa4b2;
+    --card-bg: #1d2025; --card-bg-2: #22262c; --border: #2c3038;
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; line-height:1.6; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 40px 24px 90px; }
+  .nav { font-size: 0.88rem; margin-bottom: 24px; }
+  .nav a { color: var(--accent-mule); text-decoration: none; }
+  .nav a:hover { text-decoration: underline; }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; }
+  .subtitle { color: var(--muted); margin: 0 0 30px; }
+
+  .wizard { background: var(--card-bg); border: 1px solid var(--border); border-radius: 14px; padding: 28px; }
+  .wizard-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px; }
+  .breadcrumb { font-size:0.82rem; color:var(--muted); display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .breadcrumb .crumb { background:var(--card-bg-2); border:1px solid var(--border); border-radius:6px; padding:3px 9px; }
+  .restart-btn { background:none; border:1px solid var(--border); color:var(--muted); border-radius:8px; padding:6px 14px; font-size:0.82rem; cursor:pointer; }
+  .restart-btn:hover { color:var(--fg); border-color:var(--muted); }
+
+  .q-text { font-size:1.15rem; font-weight:600; margin:6px 0 6px; }
+  .q-hint { color:var(--muted); font-size:0.9rem; margin-bottom:20px; }
+  .options { display:flex; flex-direction:column; gap:10px; }
+  .opt-btn { text-align:left; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; padding:14px 16px; cursor:pointer; font-size:0.96rem; color:var(--fg); transition:border-color .15s,background .15s; width:100%; }
+  .opt-btn:hover { border-color:var(--accent-mule); background:var(--card-bg-2); }
+  .opt-btn .opt-sub { display:block; color:var(--muted); font-size:0.85rem; margin-top:3px; font-weight:400; }
+  .opt-btn strong { font-weight:600; }
+
+  .result-card { border-radius:12px; padding:22px 24px; color:white; }
+  .result-card.sap { background: linear-gradient(135deg, var(--accent-sap), #075aad); }
+  .result-card.mule { background: linear-gradient(135deg, var(--accent-mule), #0080b0); }
+  .result-card.both { background: linear-gradient(135deg, var(--accent-both), #4c2f8f); }
+  .result-tag { font-size:0.75rem; text-transform:uppercase; letter-spacing:0.06em; opacity:0.85; margin-bottom:6px; font-weight:700; }
+  .result-title { font-size:1.3rem; font-weight:700; margin-bottom:10px; }
+  .result-body { font-size:0.95rem; opacity:0.95; }
+  .result-body ul { margin:10px 0 0; padding-left:20px; }
+  .result-body li { margin-bottom:4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="nav"><a href="index.html">&larr; Problem statement &amp; principles</a> &nbsp;&middot;&nbsp; <a href="reference.html">Full decision map &amp; tables &rarr;</a></div>
+  <h1>Where should you build?</h1>
+  <p class="subtitle">Answer a few questions about your integration to get a recommendation, reasoned from the framework's principles.</p>
+
+  <div class="wizard" id="wizard">
+    <div class="wizard-header">
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <button class="restart-btn" id="restartBtn" onclick="restart()">&#8634; Start over</button>
+    </div>
+    <div id="wizardBody"></div>
+  </div>
+</div>
+
+<script>
+  const nodes = {
+    Z: {
+      text: "Does a Capability API already exist for this data domain — or could more than one consumer ever need it?",
+      hint: "\"Consumer\" includes other backend systems, not just customer-facing apps.",
+      options: [
+        { label: "Yes — it exists, or is likely to be needed by more than one consumer", sub: "e.g. billing data needed by both Salesforce and a mobile app", next: "F", answer: "Reusable capability" },
+        { label: "No — genuinely one-off, system-to-system only", sub: "e.g. a private nightly sync between two backend systems", next: "B", answer: "Not yet reusable" }
+      ]
+    },
+    B: {
+      text: "Confirm: is there truly no external-facing consumer today or foreseeable?",
+      hint: "App, web, partner, or AI agent — now or later.",
+      options: [
+        { label: "Confirmed — no external consumer, ever", sub: "True bilateral, operational sync", next: "C", answer: "Confirmed A2A" },
+        { label: "Actually, a consumer could surface later", sub: "Re-route: this is a Capability API, not A2A", next: "F", answer: "Consumer likely" }
+      ]
+    },
+    C: {
+      text: "Is at least one endpoint SAP, with a native adapter or accelerator advantage?",
+      hint: "IDoc / BAPI / RFC / prebuilt SAP integration content.",
+      options: [
+        { label: "Yes", sub: "SAP CI has real native leverage here", next: "RESULT_SAP_A2A", answer: "SAP leverage" },
+        { label: "No", sub: "e.g. Salesforce ↔ Workday — no SAP-native advantage", next: "RESULT_MULE_A2A", answer: "No SAP leverage" }
+      ]
+    },
+    F: {
+      text: "Which layer is being built or reused?",
+      hint: "",
+      options: [
+        { label: "Capability API", sub: "Wraps one backend system's business capability", next: "G", answer: "Capability API" },
+        { label: "Orchestration API", sub: "Composes multiple Capability APIs for a business process", next: "RESULT_MULE_ORCH", answer: "Orchestration API" },
+        { label: "Experience API", sub: "Web, mobile, partner, or MCP/agent channel", next: "RESULT_MULE_EXP", answer: "Experience API" }
+      ]
+    },
+    G: {
+      text: "Is the source system SAP, with SAP CI already exposing (or cheap to build) native OData/REST?",
+      hint: "",
+      options: [
+        { label: "Yes", sub: "Reuse SAP CI's existing connectivity", next: "RESULT_BOTH_CAP", answer: "SAP source, SAP CI advantage" },
+        { label: "No", sub: "e.g. Salesforce-origin, or SAP CI has no advantage here", next: "RESULT_MULE_CAP", answer: "No SAP CI advantage" }
+      ]
+    }
+  };
+
+  const results = {
+    RESULT_SAP_A2A: {
+      type: "sap", tag: "A2A · System-to-system", title: "Build in SAP CI",
+      body: `<p>Use SAP CI's native adapters (IDoc/BAPI/RFC) or prebuilt accelerator content.</p>
+             <ul><li>No external consumer — no API catalog entry required</li>
+             <li>Stays out of the governed API layer entirely</li>
+             <li>Watch for a future second consumer — if one appears, re-run this from the top</li></ul>`
+    },
+    RESULT_MULE_A2A: {
+      type: "mule", tag: "A2A · System-to-system", title: "Build in MuleSoft",
+      body: `<p>No SAP-native advantage exists for this pairing, so default to MuleSoft's platform-agnostic connectors.</p>
+             <ul><li>Still no external consumer — keep it out of the API catalog</li>
+             <li>Use Mule for consistency with your other non-SAP integration work</li></ul>`
+    },
+    RESULT_BOTH_CAP: {
+      type: "both", tag: "Capability API", title: "SAP CI builds it, MuleSoft fronts it",
+      body: `<p>Expose the SAP data via SAP CI's native OData/REST — don't rebuild that plumbing in Mule.</p>
+             <ul><li>Front it with MuleSoft API Manager for auth, throttling, and catalog registration</li>
+             <li>Consumers only ever see the Mule-governed endpoint — they don't know or care that SAP CI built it</li>
+             <li>Register this capability so future requests reuse it instead of duplicating</li></ul>`
+    },
+    RESULT_MULE_CAP: {
+      type: "mule", tag: "Capability API", title: "Build natively in MuleSoft",
+      body: `<p>No SAP CI advantage for this source — e.g. Salesforce has a mature native Mule connector.</p>
+             <ul><li>Register in the API catalog as the single source of truth for this capability</li>
+             <li>All current and future consumers (apps, other systems) call this one API</li></ul>`
+    },
+    RESULT_MULE_ORCH: {
+      type: "mule", tag: "Orchestration API", title: "Always MuleSoft",
+      body: `<p>Orchestration composes multiple Capability APIs into a business process — it stays platform-agnostic regardless of what built the capabilities underneath.</p>
+             <ul><li>Register in the API catalog</li>
+             <li>Never built in SAP CI, even if every underlying capability happens to be SAP-sourced</li></ul>`
+    },
+    RESULT_MULE_EXP: {
+      type: "mule", tag: "Experience API", title: "Always MuleSoft",
+      body: `<p>Channel-facing layer — shaped for web, mobile, partner, or an MCP/agent consumer.</p>
+             <ul><li>Register in the API catalog</li>
+             <li>Calls into Orchestration or Capability APIs beneath it — never talks to a backend system directly</li></ul>`
+    }
+  };
+
+  let path = [];
+
+  function renderBreadcrumb() {
+    const bc = document.getElementById('breadcrumb');
+    if (path.length === 0) { bc.innerHTML = '<span style="opacity:0.6">Question 1</span>'; return; }
+    bc.innerHTML = path.map(p => `<span class="crumb">${p}</span>`).join('<span>&rsaquo;</span>');
+  }
+
+  function renderQuestion(key) {
+    const node = nodes[key];
+    const body = document.getElementById('wizardBody');
+    let html = `<div class="q-text">${node.text}</div>`;
+    if (node.hint) html += `<div class="q-hint">${node.hint}</div>`;
+    html += `<div class="options">`;
+    node.options.forEach((opt, i) => {
+      html += `<button class="opt-btn" onclick="choose('${key}', ${i})"><strong>${opt.label}</strong>${opt.sub ? `<span class="opt-sub">${opt.sub}</span>` : ''}</button>`;
+    });
+    html += `</div>`;
+    body.innerHTML = html;
+  }
+
+  function renderResult(key) {
+    const r = results[key];
+    const body = document.getElementById('wizardBody');
+    body.innerHTML = `<div class="result-card ${r.type}">
+        <div class="result-tag">${r.tag}</div>
+        <div class="result-title">${r.title}</div>
+        <div class="result-body">${r.body}</div>
+      </div>`;
+  }
+
+  function choose(nodeKey, optIndex) {
+    const opt = nodes[nodeKey].options[optIndex];
+    path.push(opt.answer);
+    renderBreadcrumb();
+    if (opt.next.startsWith('RESULT')) { renderResult(opt.next); } else { renderQuestion(opt.next); }
+  }
+
+  function restart() {
+    path = [];
+    renderBreadcrumb();
+    renderQuestion('Z');
+  }
+
+  restart();
+</script>
+</body>
+</html>
