@@ -3,8 +3,6 @@ layout: default
 title: Right Tech, Right Reason
 ---
 
-*Water Segment Customer — Architecture Proposal*
-
 # Right tech, right reason: an integration platform framework
 
 A proposal for how we decide where to build integrations — SAP CI vs. MuleSoft — without turning it into bureaucracy.
